@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dodge the Blocks Game</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            height: 100vh;
+            background: linear-gradient(to bottom, #87CEEB, #f0f8ff); /* Light blue gradient */
+            color: #333;
+        }
+        canvas {
+            border: 2px solid #000;
+            background-color: #FFF;
+            display: none;
+        }
+        #startButton, #restartButton {
+            padding: 10px 20px;
+            font-size: 20px;
+            color: white;
+            background-color: #4CAF50;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+        #restartButton {
+            display: none;
+        }
+        #result {
+            display: none;
+            font-size: 24px;
+            font-weight: bold;
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: #333;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div id="result"></div>
+    <button id="startButton">Start Game</button>
+    <button id="restartButton">Restart Game</button>
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const startButton = document.getElementById('startButton');
+        const restartButton = document.getElementById('restartButton');
+        const resultDiv = document.getElementById('result');
+
+        canvas.width = window.innerWidth - 20; /* Add a small margin */
+        canvas.height = window.innerHeight - 20;
+
+        let playerX = canvas.width / 2;
+        let playerY = canvas.height - 50;
+        const playerSize = 20;
+        let blocks = [];
+        let score = 0;
+        let isGameRunning = false;
+
+        let blockSpawnRate = 0.04;
+        let blockSpeedMultiplier = 1;
+        let allowHorizontalMovement = false;
+
+        function drawPlayer() {
+            ctx.fillStyle = '#007BFF'; /* Bright blue for the player */
+            ctx.fillRect(playerX, playerY, playerSize, playerSize);
+        }
+
+        function drawBlocks() {
+            blocks.forEach(block => {
+                ctx.fillStyle = '#FF6347'; /* Tomato red for blocks */
+                ctx.fillRect(block.x, block.y, block.size, block.size);
+                ctx.strokeStyle = '#000'; /* Add black border to blocks */
+                ctx.strokeRect(block.x, block.y, block.size, block.size);
+            });
+        }
+
+        function drawScore() {
+            ctx.fillStyle = '#333';
+            ctx.font = '20px Arial';
+            ctx.fillText(`Score: ${score}`, 10, 30);
+        }
+
+        function updateBlocks() {
+            blocks.forEach(block => {
+                block.y += block.speed * blockSpeedMultiplier;
+                if (allowHorizontalMovement) {
+                    block.x += block.horizontalSpeed;
+
+                    // Reverse direction if block hits the canvas edge
+                    if (block.x < 0 || block.x + block.size > canvas.width) {
+                        block.horizontalSpeed *= -1;
+                    }
+                }
+            });
+            blocks = blocks.filter(block => block.y < canvas.height);
+
+            // Adjust difficulty based on score
+            if (score > 1000 && score <= 2000) {
+                blockSpeedMultiplier = 1.2;
+            } else if (score > 2000 && score <= 6000) {
+                blockSpeedMultiplier = 1.5;
+                allowHorizontalMovement = true;
+            } else if (score > 6000) {
+                blockSpeedMultiplier += 0.001; // Gradually increase speed
+                blockSpawnRate += 0.00001; // Gradually increase spawn rate
+            }
+
+            if (Math.random() < blockSpawnRate) {
+                blocks.push({
+                    x: Math.random() * (canvas.width - 20),
+                    y: 0,
+                    size: 20 + Math.random() * 20,
+                    speed: 3 + Math.random() * 2, // Base speed
+                    horizontalSpeed: allowHorizontalMovement ? (Math.random() < 0.5 ? -1 : 1) * (1 + Math.random() * 2) : 0 // Horizontal movement
+                });
+            }
+        }
+
+        function checkCollision() {
+            return blocks.some(block => {
+                return (
+                    playerX < block.x + block.size &&
+                    playerX + playerSize > block.x &&
+                    playerY < block.y + block.size &&
+                    playerY + playerSize > block.y
+                );
+            });
+        }
+
+        function update() {
+            if (!isGameRunning) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            drawPlayer();
+            drawBlocks();
+            drawScore();
+
+            updateBlocks();
+
+            if (checkCollision()) {
+                endGame();
+                return;
+            }
+
+            score++;
+            requestAnimationFrame(update);
+        }
+
+        function resetGame() {
+            blocks = [];
+            score = 0;
+            blockSpeedMultiplier = 1;
+            allowHorizontalMovement = false;
+        }
+
+        function startGame() {
+            resetGame();
+            isGameRunning = true;
+            canvas.style.display = 'block';
+            startButton.style.display = 'none';
+            restartButton.style.display = 'none';
+            resultDiv.style.display = 'none';
+            update();
+        }
+
+        function restartGame() {
+            resetGame();
+            isGameRunning = true;
+            canvas.style.display = 'block';
+            restartButton.style.display = 'none';
+            resultDiv.style.display = 'none';
+            update();
+        }
+
+        function endGame() {
+            isGameRunning = false;
+            resultDiv.textContent = `Game Over! Your score: ${score}`;
+            resultDiv.style.display = 'block';
+            restartButton.style.display = 'block';
+        }
+
+        startButton.addEventListener('click', startGame);
+        restartButton.addEventListener('click', restartGame);
+
+        window.addEventListener('mousemove', (event) => {
+            if (isGameRunning) {
+                playerX = Math.min(Math.max(event.clientX - playerSize / 2, 0), canvas.width - playerSize);
+            }
+        });
+
+        window.addEventListener('touchmove', (event) => {
+            if (isGameRunning) {
+                playerX = Math.min(Math.max(event.touches[0].clientX - playerSize / 2, 0), canvas.width - playerSize);
+            }
+        });
+    </script>
+</body>
+</html>
